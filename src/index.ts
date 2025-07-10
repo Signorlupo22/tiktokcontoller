@@ -1,4 +1,4 @@
-import { TikTokLiveConnection, WebcastEvent } from 'tiktok-live-connector';
+import { TikTokLiveConnection, WebcastEvent, WebcastGiftMessage } from 'tiktok-live-connector';
 import keySender from 'node-key-sender';
 import { exec } from 'child_process';
 import path from 'path';
@@ -8,6 +8,9 @@ const tiktokUsername = '_chomas_dev';
 
 const tiktok = new TikTokLiveConnection(tiktokUsername);
 
+tiktok.fetchAvailableGifts().then(gifts => {
+  console.log(gifts.slice(0, 5));
+});
 // Connetti alla live
 tiktok.connect().then(() => {
   console.log(`✅ Connesso alla live di @${tiktokUsername}`);
@@ -16,41 +19,66 @@ tiktok.connect().then(() => {
 });
 
 // Quando ricevi un regalo
-tiktok.on(WebcastEvent.GIFT, (data: any) => {
-  const coins = data.gift.diamondCount;
-  const sender = data.uniqueId;
+tiktok.on(WebcastEvent.GIFT, (data: WebcastGiftMessage) => {
+  const info = data.giftDetails;
+  if(!info) return;
 
-  console.log(`🎁 Regalo da ${sender} - ${coins} coin(s)`);
+  // Handle gift streaks and normal gifts according to TikTok's event model
+  // Suggest a Rocket League action/challenge based on the donation amount (gift coin value)
+  const coins = info.diamondCount || 1; // fallback to 1 if not available
 
-  if (coins >= 1 && coins < 3) {
-    console.log('↩️ Ctrl+Z triggered!');
-    keySender.sendCombination(['control', 'z']);
-  } else if (coins >= 3 && coins < 5) {
-    console.log('📝 Select All (Ctrl+A)');
-    keySender.sendCombination(['control', 'a']);
-  } else if (coins >= 5 && coins < 8) {
-    console.log('❌ Chiudo editor (Ctrl+W)');
-    keySender.sendCombination(['control', 'w']);
-  } else if (coins >= 8 && coins < 12) {
-    console.log('🔄 Refresh page (Ctrl+R)');
-    keySender.sendCombination(['control', 'r']);
-  } else if (coins >= 12 && coins < 15) {
-    console.log('🔍 Find (Ctrl+F)');
-    keySender.sendCombination(['control', 'f']);
-  } else if (coins >= 15 && coins < 20) {
-    console.log('💾 Save (Ctrl+S)');
-    keySender.sendCombination(['control', 's']);
-  } else if (coins >= 20 && coins < 25) {
-    console.log('🖥️ Close tab (Ctrl+Shift+W)');
-    keySender.sendCombination(['control', 'shift', 'w']);
-  } else if (coins >= 25 && coins < 30) {
-    console.log('🔄 Restart PC in 30 secondi');
-    exec('shutdown -r -t 30'); // Windows restart
-  } else if (coins >= 30) {
-    console.log('💣 Spegnimento PC in 10 secondi');
-    exec('shutdown -s -t 10'); // Windows - su macOS/Linux: 'shutdown -h +0.1'
+  let suggestion = '';
+  if (coins < 5) {
+    suggestion = 'Jump pressed!';
+    keySender.sendCombination(['space']);
+  } else if (coins < 10) {
+    suggestion = 'Ballcam disabled!';
+    keySender.sendCombination(['c']);
+  } else if (coins < 15) {
+    suggestion = 'Boost for 5 seconds!';
+    // Press and hold 'b' for 5 seconds using batch methods
+    keySender.sendKey('b');
+    setTimeout(() => {
+      keySender.sendKey('b');
+    }, 5000);
+  } else if (coins < 25) {
+    suggestion = 'Boost for 10 seconds!';
+  } else {
+    suggestion = 'Double jump!';
   }
+
+  console.log(`🚗 Rocket League Action: ${suggestion} (Gift: ${info.giftName}, Coins: ${coins})`);
 });
+
+//   if (coins >= 1 && coins < 3) {
+//     console.log('↩️ Ctrl+Z triggered!');
+//     keySender.sendCombination(['control', 'z']);
+//   } else if (coins >= 3 && coins < 5) {
+//     console.log('📝 Select All (Ctrl+A)');
+//     keySender.sendCombination(['control', 'a']);
+//   } else if (coins >= 5 && coins < 8) {
+//     console.log('❌ Chiudo editor (Ctrl+W)');
+//     keySender.sendCombination(['control', 'w']);
+//   } else if (coins >= 8 && coins < 12) {
+//     console.log('🔄 Refresh page (Ctrl+R)');
+//     keySender.sendCombination(['control', 'r']);
+//   } else if (coins >= 12 && coins < 15) {
+//     console.log('🔍 Find (Ctrl+F)');
+//     keySender.sendCombination(['control', 'f']);
+//   } else if (coins >= 15 && coins < 20) {
+//     console.log('💾 Save (Ctrl+S)');
+//     keySender.sendCombination(['control', 's']);
+//   } else if (coins >= 20 && coins < 25) {
+//     console.log('🖥️ Close tab (Ctrl+Shift+W)');
+//     keySender.sendCombination(['control', 'shift', 'w']);
+//   } else if (coins >= 25 && coins < 30) {
+//     console.log('🔄 Restart PC in 30 secondi');
+//     exec('shutdown -r -t 30'); // Windows restart
+//   } else if (coins >= 30) {
+//     console.log('💣 Spegnimento PC in 10 secondi');
+//     exec('shutdown -s -t 10'); // Windows - su macOS/Linux: 'shutdown -h +0.1'
+//   }
+
 
 
 tiktok.on(WebcastEvent.CHAT, (data: any) => {
@@ -62,10 +90,6 @@ tiktok.on(WebcastEvent.CHAT, (data: any) => {
   if(data.comment.includes('/cam2')){
     console.log('📹 Switching to camera 2');
     keySender.sendCombination(['control', 'alt', '2']);
-  }
-  if(data.comment.includes('/cam3')){
-    console.log('📹 Switching to camera 3');
-    keySender.sendCombination(['control', 'alt', '3']);
   }
   if(data.comment.includes('/allert')){
     console.log('🚨 Alert');
